@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morphology Jeopardy & Matrix Builder</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        jblue: {
+                            DEFAULT: '#060CE9',
+                            dark: '#000080',
+                            light: '#1e2be8',
+                            hover: '#2938f5'
+                        },
+                        jgold: {
+                            DEFAULT: '#FFCC00',
+                            light: '#FFE066',
+                            dark: '#D4A000'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Impact', 'Trebuchet MS', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: radial-gradient(circle at center, #0a1045 0%, #02051e 100%);
+            min-height: 100vh;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+        }
+
+        .board-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .j-card {
+            background: linear-gradient(135deg, #060CE9 0%, #020780 100%);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5), inset 0 0 12px rgba(255, 255, 255, 0.15);
+            border: 2px solid #FFCC00;
+            transition: all 0.25s ease-in-out;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .j-card:hover:not(.disabled) {
+            transform: scale(1.04);
+            box-shadow: 0 0 20px rgba(255, 204, 0, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .j-card.disabled {
+            background: #0d1335;
+            border-color: #2a3468;
+            opacity: 0.35;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .gold-text {
+            color: #FFCC00;
+            text-shadow: 2px 2px 0px #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+        }
+
+        .glow-box {
+            box-shadow: 0 0 25px rgba(6, 12, 233, 0.6);
+        }
+
+        @keyframes modalPop {
+            0% { transform: scale(0.85); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .animate-pop {
+            animation: modalPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .active-player {
+            border-color: #FFCC00 !important;
+            box-shadow: 0 0 15px rgba(255, 204, 0, 0.8) !important;
+            background: rgba(255, 204, 0, 0.2) !important;
+        }
+
+        .buzzer-glow {
+            animation: buzzerPulse 0.6s infinite alternate;
+        }
+
+        @keyframes buzzerPulse {
+            0% { box-shadow: 0 0 10px #FFCC00; }
+            100% { box-shadow: 0 0 30px #FFCC00, 0 0 10px #ffffff; }
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #02051e; }
+        ::-webkit-scrollbar-thumb { background: #060CE9; border-radius: 4px; }
+    </style>
+</head>
+<body class="p-3 md:p-6 flex flex-col justify-between min-h-screen">
+
+    <!-- Header Section -->
+    <header class="max-w-7xl mx-auto w-full mb-3">
+        <div class="flex flex-col md:flex-row justify-between items-center bg-blue-950/90 backdrop-blur border-2 border-jgold/60 rounded-xl p-3 md:p-4 shadow-2xl gap-3">
+            <div class="flex items-center gap-3">
+                <div class="bg-jgold text-jblue-dark p-2.5 rounded-lg text-2xl font-black">
+                    <i class="fa-solid fa-puzzle-piece"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-3xl font-black tracking-wider gold-text uppercase">Morphology Jeopardy</h1>
+                    <p class="text-xs text-blue-200">Interactive Morphemes, Roots, Prefixes & Suffixes</p>
+                </div>
+            </div>
+
+            <!-- View Navigation & Game Controls Header -->
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Navigation Tabs -->
+                <div class="bg-blue-900/60 p-1 rounded-lg border border-jgold/30 flex gap-1">
+                    <button id="navBoardBtn" onclick="switchView('board')" class="bg-jgold text-blue-950 px-3 py-1.5 rounded font-black text-xs md:text-sm flex items-center gap-1.5 shadow">
+                        <i class="fa-solid fa-table-cells"></i> Board
+                    </button>
+                    <button id="navMatrixBtn" onclick="switchView('matrix')" class="text-blue-200 hover:text-white px-3 py-1.5 rounded font-bold text-xs md:text-sm flex items-center gap-1.5">
+                        <i class="fa-solid fa-cubes"></i> Morpheme Matrix
+                    </button>
+                </div>
+
+                <!-- Game Controls -->
+                <button onclick="reshuffleBoard()" title="Reshuffle category board" class="bg-purple-900/80 hover:bg-purple-800 text-purple-200 border border-purple-400/40 px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-shuffle"></i> Reshuffle
+                </button>
+                <button id="modeToggle" onclick="togglePlayMode()" class="bg-indigo-900 hover:bg-indigo-800 text-yellow-300 border border-jgold/40 px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-list-check" id="modeIcon"></i> Mode: Multiple Choice
+                </button>
+                <button id="soundToggle" onclick="toggleSound()" class="bg-blue-900 hover:bg-blue-800 text-yellow-400 border border-jgold/40 px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-volume-high" id="soundIcon"></i> Sound: ON
+                </button>
+                <button onclick="startFinalJeopardy()" id="finalJeopardyBtn" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs md:text-sm transition shadow-lg flex items-center gap-1.5 border border-amber-300">
+                    <i class="fa-solid fa-trophy"></i> Final Jeopardy
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- VIEW 1: MAIN JEOPARDY GAME BOARD -->
+    <main id="jeopardyView" class="max-w-7xl mx-auto w-full flex-grow flex flex-col justify-center my-2">
+        <div id="gameBoard" class="board-grid">
+            <!-- Dynamic Category and Tile Grid -->
+        </div>
+    </main>
+
+    <!-- VIEW 2: MORPHEME MATRIX BUILDER MINI-GAME -->
+    <main id="matrixView" class="max-w-7xl mx-auto w-full flex-grow flex-col justify-center my-2 hidden">
+        <div class="bg-blue-950/90 border-2 border-jgold/60 rounded-2xl p-4 md:p-6 shadow-2xl backdrop-blur">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2 border-b border-jgold/30 pb-3">
+                <div>
+                    <h2 class="text-xl md:text-2xl font-black text-jgold uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-cubes"></i> Morpheme Matrix Builder
+                    </h2>
+                    <p class="text-xs text-blue-200">Combine a Prefix, Base Word, and Suffix to construct valid English words!</p>
+                </div>
+                <div class="bg-blue-900/60 border border-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold text-yellow-300">
+                    Active Team Bonus: <span id="matrixActiveTeam" class="text-white font-extrabold">Team 1</span>
+                </div>
+            </div>
+
+            <!-- Matrix Selection Workspace -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <!-- Prefixes -->
+                <div class="bg-blue-900/40 p-3 rounded-xl border border-blue-700/60">
+                    <h3 class="text-xs font-black uppercase text-jgold mb-2 text-center tracking-widest"><i class="fa-solid fa-arrow-left"></i> Prefixes</h3>
+                    <div id="prefixList" class="grid grid-cols-2 gap-2"></div>
+                </div>
+
+                <!-- Bases -->
+                <div class="bg-blue-900/40 p-3 rounded-xl border border-blue-700/60">
+                    <h3 class="text-xs font-black uppercase text-jgold mb-2 text-center tracking-widest"><i class="fa-solid fa-font"></i> Base / Root Words</h3>
+                    <div id="baseList" class="grid grid-cols-2 gap-2"></div>
+                </div>
+
+                <!-- Suffixes -->
+                <div class="bg-blue-900/40 p-3 rounded-xl border border-blue-700/60">
+                    <h3 class="text-xs font-black uppercase text-jgold mb-2 text-center tracking-widest"><i class="fa-solid fa-arrow-right"></i> Suffixes</h3>
+                    <div id="suffixList" class="grid grid-cols-2 gap-2"></div>
+                </div>
+            </div>
+
+            <!-- Word Assembly Display Area -->
+            <div class="bg-blue-950 border-2 border-jgold/80 rounded-xl p-4 text-center mb-4 shadow-inner flex flex-col md:flex-row items-center justify-between gap-3">
+                <div class="flex items-center justify-center gap-2 text-xl md:text-3xl font-black uppercase text-white tracking-widest">
+                    <span id="selectedPrefix" class="text-yellow-400 bg-blue-900/80 px-3 py-1 rounded border border-yellow-400/40 min-w-[70px]">[Prefix]</span>
+                    <span>+</span>
+                    <span id="selectedBase" class="text-emerald-300 bg-blue-900/80 px-3 py-1 rounded border border-emerald-400/40 min-w-[90px]">[Base]</span>
+                    <span>+</span>
+                    <span id="selectedSuffix" class="text-sky-300 bg-blue-900/80 px-3 py-1 rounded border border-sky-400/40 min-w-[70px]">[Suffix]</span>
+                    <span>=</span>
+                    <span id="assembledWord" class="text-jgold underline decoration-jgold/50 underline-offset-4 ml-2">[Assemble Word]</span>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="clearMatrix()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold px-3 py-2 rounded-lg text-xs uppercase transition">
+                        Clear
+                    </button>
+                    <button onclick="checkMatrixWord()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-5 py-2 rounded-lg text-sm uppercase tracking-wider transition shadow-lg border border-emerald-300">
+                        Test Word (+200 pts)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Matrix Word Log & Validation Feedback -->
+            <div id="matrixFeedback" class="hidden p-3 rounded-xl font-bold text-sm text-center mb-4"></div>
+            
+            <div class="bg-blue-900/30 rounded-xl p-3 border border-blue-800">
+                <h4 class="text-xs uppercase font-bold text-gray-300 mb-2">Discovered Words This Session:</h4>
+                <div id="discoveredWordsList" class="flex flex-wrap gap-2 text-xs font-semibold text-yellow-200">
+                    <span class="text-gray-400 italic">No words constructed yet...</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Scoreboard / Player & Buzzer Management -->
+    <footer class="max-w-7xl mx-auto w-full mt-3">
+        <div class="bg-blue-950/90 backdrop-blur border-2 border-jgold/60 rounded-xl p-3 shadow-2xl">
+            <div class="flex flex-wrap justify-between items-center mb-2 gap-2">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-sm md:text-base font-bold text-jgold flex items-center gap-2 uppercase tracking-wide">
+                        <i class="fa-solid fa-users"></i> Scoreboard & Team Buzzers
+                    </h2>
+                    <span class="text-[10px] text-blue-300 bg-blue-900/80 px-2 py-0.5 rounded border border-blue-700">
+                        <i class="fa-solid fa-keyboard"></i> Buzz Keys: 1, 2, 3, 4, 5
+                    </span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="addPlayer()" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs px-2.5 py-1 rounded font-semibold transition flex items-center gap-1">
+                        <i class="fa-solid fa-user-plus"></i> Add Team
+                    </button>
+                    <button onclick="removePlayer()" class="bg-rose-800 hover:bg-rose-700 text-white text-xs px-2.5 py-1 rounded font-semibold transition flex items-center gap-1">
+                        <i class="fa-solid fa-user-minus"></i> Remove Team
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bottom Scoreboard Grid -->
+            <div id="scoreboard" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                <!-- Players inserted dynamically -->
+            </div>
+        </div>
+    </footer>
+
+    <!-- CLUE MODAL -->
+    <div id="clueModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-jblue border-4 border-jgold rounded-2xl max-w-2xl w-full p-5 md:p-7 shadow-2xl text-center relative animate-pop glow-box max-h-[90vh] flex flex-col justify-between">
+            
+            <!-- Category, Timer & Value Header -->
+            <div class="flex justify-between items-center border-b border-jgold/30 pb-2 mb-3">
+                <span id="modalCategory" class="text-xs md:text-sm uppercase tracking-widest text-jgold font-bold">Category</span>
+                
+                <!-- Countdown Timer Widget -->
+                <div class="flex items-center gap-2 bg-blue-950 px-3 py-1 rounded-full border border-jgold/50">
+                    <i class="fa-solid fa-stopwatch text-jgold text-xs"></i>
+                    <span id="timerDisplay" class="font-black text-sm text-yellow-300 min-w-[24px]">30s</span>
+                    <button onclick="toggleTimerDuration()" title="Change Timer Duration" class="text-[10px] bg-blue-800 hover:bg-blue-700 px-1.5 py-0.5 rounded text-blue-200">
+                        <i class="fa-solid fa-sliders"></i>
+                    </button>
+                </div>
+
+                <span id="modalValue" class="text-base md:text-xl font-black text-jgold">$100</span>
+            </div>
+
+            <!-- Active Buzzed Team Status Banner -->
+            <div id="buzzerBanner" class="bg-amber-500/20 border border-amber-400/50 text-amber-200 p-2 rounded-lg text-xs md:text-sm font-bold mb-2 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-bell animate-bounce"></i>
+                <span id="buzzerStatusText">Press Keyboard Key (1-5) or Team Buzzer to Lock In!</span>
+            </div>
+
+            <!-- Question/Clue Text -->
+            <div class="my-3 min-h-[90px] flex items-center justify-center flex-col overflow-y-auto">
+                <p class="text-xs uppercase text-blue-200 tracking-wider mb-1 font-semibold">Clue:</p>
+                <p id="modalClueText" class="text-base md:text-xl font-bold text-white leading-relaxed px-2">
+                    Clue text goes here...
+                </p>
+            </div>
+
+            <!-- Mode 1: Multiple Choice Options -->
+            <div id="optionsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 mb-3">
+                <!-- Buttons added dynamically -->
+            </div>
+
+            <!-- Mode 2: Open Answer / Host Reveal Container -->
+            <div id="openAnswerContainer" class="hidden my-3">
+                <button id="revealAnswerBtn" onclick="revealDirectAnswer()" class="bg-amber-500 hover:bg-amber-400 text-blue-950 font-black px-6 py-2.5 rounded-xl uppercase tracking-wider text-sm shadow-lg mb-3">
+                    <i class="fa-solid fa-eye mr-2"></i> Reveal Correct Answer
+                </button>
+                <div id="directAnswerText" class="hidden p-3 bg-blue-950 border border-jgold/50 rounded-xl text-jgold font-bold text-lg"></div>
+            </div>
+
+            <!-- Feedback Message -->
+            <div id="feedbackBox" class="hidden mb-3 p-2 rounded-lg text-center font-bold text-xs md:text-sm"></div>
+
+            <!-- Active Player Selector & Scoring in Modal -->
+            <div class="bg-blue-950/90 p-2.5 rounded-xl border border-blue-700 flex flex-wrap items-center justify-between gap-2 text-xs md:text-sm">
+                <span class="text-blue-200 font-medium">Award / Penalize:</span>
+                <div id="modalPlayerButtons" class="flex flex-wrap gap-1.5">
+                    <!-- Dynamic player scoring buttons -->
+                </div>
+                <button onclick="closeClueModal()" class="ml-auto bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded-lg font-bold uppercase transition text-xs">
+                    Close Clue
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DAILY DOUBLE MODAL -->
+    <div id="dailyDoubleModal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-amber-600 border-4 border-yellow-300 rounded-2xl max-w-md w-full p-6 text-center animate-pop text-white shadow-2xl">
+            <h2 class="text-3xl md:text-4xl font-black text-yellow-200 tracking-widest mb-2 uppercase drop-shadow">DAILY DOUBLE!</h2>
+            <p class="text-xs md:text-sm mb-4">Place a wager before seeing the clue!</p>
+            
+            <div class="mb-3 text-left">
+                <label class="block text-xs uppercase mb-1 font-bold text-yellow-100">Select Active Player:</label>
+                <select id="ddPlayerSelect" class="bg-blue-950 border border-yellow-400 rounded p-2 w-full text-white font-bold text-sm"></select>
+            </div>
+
+            <div class="mb-5 text-left">
+                <label class="block text-xs uppercase mb-1 font-bold text-yellow-100">Enter Wager ($100 - Max Available):</label>
+                <input type="number" id="ddWagerInput" min="100" value="500" step="100" class="bg-blue-950 border border-yellow-400 text-center text-xl font-bold text-yellow-300 p-2 rounded w-full">
+            </div>
+
+            <button onclick="confirmDailyDoubleWager()" class="w-full bg-yellow-400 hover:bg-yellow-300 text-blue-950 font-black py-2.5 rounded-xl text-base uppercase transition shadow-lg">
+                Reveal Clue
+            </button>
+        </div>
+    </div>
+
+    <!-- FINAL JEOPARDY MODAL -->
+    <div id="finalJeopardyModal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-jblue border-4 border-jgold rounded-2xl max-w-3xl w-full p-5 md:p-7 shadow-2xl text-center animate-pop">
+            <h2 class="text-2xl md:text-3xl font-black gold-text uppercase tracking-widest mb-1">FINAL JEOPARDY</h2>
+            <p id="fjCategory" class="text-base md:text-lg font-bold text-blue-200 uppercase mb-4">Category: MORPHOLOGICAL INQUIRY</p>
+
+            <!-- Wager Phase -->
+            <div id="fjWagerPhase" class="space-y-3">
+                <p class="text-xs md:text-sm text-gray-300 mb-2">All teams, enter your wagers based on current scores!</p>
+                <div id="fjWagerInputs" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-52 overflow-y-auto p-1"></div>
+                <button onclick="proceedToFJQuestion()" class="bg-jgold hover:bg-yellow-400 text-blue-950 font-black px-6 py-2.5 rounded-xl text-base uppercase transition">
+                    Start Final Clue
+                </button>
+            </div>
+
+            <!-- Question Phase -->
+            <div id="fjQuestionPhase" class="hidden">
+                <div class="bg-blue-950 p-4 rounded-xl border border-jgold/40 mb-4">
+                    <p class="text-xs uppercase text-jgold tracking-widest mb-1">Final Clue:</p>
+                    <p id="fjClueText" class="text-base md:text-lg font-bold text-white">Loading clue...</p>
+                </div>
+                
+                <div id="fjPlayerAnswers" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 text-left"></div>
+
+                <button onclick="revealFJResults()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-6 py-2.5 rounded-xl text-base uppercase transition shadow-lg">
+                    Evaluate & Show Winner
+                </button>
+            </div>
+
+            <!-- Winner Phase -->
+            <div id="fjWinnerPhase" class="hidden text-center py-4">
+                <i class="fa-solid fa-trophy text-5xl text-jgold mb-3 animate-bounce"></i>
+                <h3 id="winnerText" class="text-2xl md:text-3xl font-black text-white mb-4">Team 1 Wins!</h3>
+                <button onclick="location.reload()" class="bg-jgold hover:bg-yellow-300 text-blue-950 font-black px-6 py-2.5 rounded-xl text-base uppercase transition">
+                    Play Again
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME LOGIC SCRIPT -->
+    <script>
+        // WEB AUDIO SYNTHESIZER
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let soundEnabled = true;
+        let isMultipleChoiceMode = true;
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'select') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                osc.start(now);
+                osc.stop(now + 0.12);
+            } else if (type === 'correct') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.08);
+                osc.frequency.setValueAtTime(783.99, now + 0.16);
+                osc.frequency.setValueAtTime(1046.50, now + 0.24);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'incorrect') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.setValueAtTime(180, now + 0.15);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            } else if (type === 'buzzer') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.setValueAtTime(900, now + 0.08);
+                gain.gain.setValueAtTime(0.35, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            } else if (type === 'tick') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                osc.start(now);
+                osc.stop(now + 0.04);
+            } else if (type === 'dailyDouble') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.25);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('soundToggle');
+            btn.innerHTML = soundEnabled ? 
+                '<i class="fa-solid fa-volume-high" id="soundIcon"></i> Sound: ON' : 
+                '<i class="fa-solid fa-volume-xmark" id="soundIcon"></i> Sound: OFF';
+        }
+
+        function togglePlayMode() {
+            isMultipleChoiceMode = !isMultipleChoiceMode;
+            const btn = document.getElementById('modeToggle');
+            btn.innerHTML = isMultipleChoiceMode ?
+                '<i class="fa-solid fa-list-check" id="modeIcon"></i> Mode: Multiple Choice' :
+                '<i class="fa-solid fa-comment-dots" id="modeIcon"></i> Mode: Direct Answer';
+        }
+
+        // FULL CATEGORY & QUESTION POOL (FOR RANDOMIZER SHUFFLING)
+        const masterCategoryPool = [
+            {
+                title: "Prefix Power",
+                clues: [
+                    { value: 100, prompt: "What does the prefix UN- mean in words like 'unsafe' or 'unhappy'?", options: ["Not or opposite of", "Again or back", "Before", "Too much"], correct: "Not or opposite of" },
+                    { value: 200, prompt: "What does the prefix RE- mean in words like 'recycle', 'refresh', or 'retry'?", options: ["Again or back", "Under or below", "Before", "Not"], correct: "Again or back" },
+                    { value: 300, prompt: "What does the prefix PRE- mean in words like 'preview', 'predict', or 'pretest'?", options: ["Before", "After", "Full of", "In the middle"], correct: "Before" },
+                    { value: 400, prompt: "What does the prefix OVER- mean in words like 'overload' or 'overreact'?", options: ["Too much or above", "Under or below", "Without", "Someone who"], correct: "Too much or above" },
+                    { value: 500, prompt: "What does the prefix SUB- mean in words like 'subway', 'submarine', or 'submerge'?", options: ["Under or below", "Above or beyond", "In front of", "Before"], correct: "Under or below" }
+                ]
+            },
+            {
+                title: "Suffix Secrets",
+                clues: [
+                    { value: 100, prompt: "What does the suffix -LESS mean in words like 'thoughtless' or 'penniless'?", options: ["Without", "Full of", "State of being", "Someone who"], correct: "Without" },
+                    { value: 200, prompt: "What does the suffix -FUL mean in words like 'delightful' or 'respectful'?", options: ["Full of", "Without", "Below", "Not"], correct: "Full of" },
+                    { value: 300, prompt: "What does the suffix -NESS mean in words like 'emptiness' or 'politeness'?", options: ["State of being or quality", "Action being done", "Before", "Full of"], correct: "State of being or quality" },
+                    { value: 400, prompt: "What do the suffixes -ER and -OR both describe in words like 'teacher' or 'doctor'?", options: ["Someone who does an action or function", "A place where things are made", "State of being without something", "An action in the past"], correct: "Someone who does an action or function" },
+                    { value: 500, prompt: "In the word 'UNHAPPINESS', what function does '-NESS' serve?", options: ["Suffix indicating state of being", "Prefix meaning not", "Base word carrying core meaning", "Root meaning feeling of joy"], correct: "Suffix indicating state of being" }
+                ]
+            },
+            {
+                title: "Tricky Non-Examples",
+                clues: [
+                    { value: 100, prompt: "Why is the word 'RED' a non-example of the prefix RE-?", options: ["'RED' is a base word; RE- is not acting as a prefix meaning again", "'RED' means before", "RE- can only go on verbs", "'RED' is a suffix"], correct: "'RED' is a base word; RE- is not acting as a prefix meaning again" },
+                    { value: 200, prompt: "Why is 'PRETTY' a non-example of the prefix PRE-?", options: ["PRE- is just a letter sequence here, not a morpheme meaning 'before'", "PRETTY ends in -Y", "PRETTY is a base with a suffix", "PRE- only means again"], correct: "PRE- is just a letter sequence here, not a morpheme meaning 'before'" },
+                    { value: 300, prompt: "Why is 'UNDERSTAND' listed as a non-example of the prefix UNDER-?", options: ["UNDER- doesn't mean 'beneath' here; it comes from 'stand among'", "It's a compound word for clothing", "STAND is not a real word", "It means standing over something"], correct: "UNDER- doesn't mean 'beneath' here; it comes from 'stand among'" },
+                    { value: 400, prompt: "Why is 'SUPERSTITION' or 'SUPERVISE' tricky as a standard prefix example for SUPER-?", options: ["Separating SUPER- does not leave an easily identifiable base word to figure out meaning", "SUPER- means under in those words", "They are non-English words", "They contain no vowels"], correct: "Separating SUPER- does not leave an easily identifiable base word to figure out meaning" },
+                    { value: 500, prompt: "Why is 'UNDERWEAR' considered a compound word rather than a prefix + base structure?", options: ["It combines two independent words ('under' + 'wear'), not a prefix applied to a base", "UNDER- means not", "WEAR is a suffix", "It doesn't have a vowel in every syllable"], correct: "It combines two independent words ('under' + 'wear'), not a prefix applied to a base" }
+                ]
+            },
+            {
+                title: "Word Breakdown",
+                clues: [
+                    { value: 100, prompt: "Break down 'UNHAPPINESS' into its 3 morphemes.", options: ["UN- (prefix) + HAPPY (base) + -NESS (suffix)", "UNHAPPY (base) + NESS (suffix)", "UN (prefix) + HAPPINESS (base)", "U + NHAPP + INESS"], correct: "UN- (prefix) + HAPPY (base) + -NESS (suffix)" },
+                    { value: 200, prompt: "What is the official definition of Morphology?", options: ["The study of words and their meaningful parts", "The study of animal habitats", "The rules of spelling long vowels", "Counting syllables in poetry"], correct: "The study of words and their meaningful parts" },
+                    { value: 300, prompt: "Combine TELE + VISION or MICRO + SCOPE. What do TELE and MICRO mean?", options: ["Tele = Far/Distant; Micro = Small", "Tele = Small; Micro = Fast", "Tele = Sound; Micro = Vision", "Tele = Light; Micro = Heavy"], correct: "Tele = Far/Distant; Micro = Small" },
+                    { value: 400, prompt: "What is the key difference between a Root/Base word and an Affix?", options: ["A base carries core meaning; affixes attach to modify meaning", "Bases are always short; affixes are always long", "Affixes can stand alone; bases cannot", "There is no difference"], correct: "A base carries core meaning; affixes attach to modify meaning" },
+                    { value: 500, prompt: "Which of the following is a set of 3 valid words formed with the prefix RE-?", options: ["Reset, Rewrite, Replay", "Read, Red, Restaurant", "Real, Ready, Respect", "Rebuy, Red, Reach"], correct: "Reset, Rewrite, Replay" }
+                ]
+            },
+            {
+                title: "Meanings & Syllables",
+                clues: [
+                    { value: 100, prompt: "What does the prefix NON- mean in words like 'nonstop' or 'nonfiction'?", options: ["Not or absence of", "Before", "Again", "Too much"], correct: "Not or absence of" },
+                    { value: 200, prompt: "What does the prefix MID- mean in words like 'midday' or 'midway'?", options: ["In the middle or part way", "Under or below", "Full of", "Beyond"], correct: "In the middle or part way" },
+                    { value: 300, prompt: "What does the prefix SUPER- mean in words like 'superhero' or 'superhuman'?", options: ["Above, beyond, or better", "Under or beneath", "Not or false", "Before"], correct: "Above, beyond, or better" },
+                    { value: 400, prompt: "What does the prefix FORE- mean in words like 'forecast' or 'forehead'?", options: ["Before or front", "After or back", "Inside of", "Without"], correct: "Before or front" },
+                    { value: 500, prompt: "What essential component MUST every single syllable contain?", options: ["Every syllable has a vowel sound", "Every syllable has a prefix", "Every syllable has at least 5 letters", "Every syllable ends with a consonant"], correct: "Every syllable has a vowel sound" }
+                ]
+            }
+        ];
+
+        // ACTIVE BOARD DATA
+        let activeCategories = [];
+
+        // STATE VARIABLES
+        let players = [
+            { id: 1, name: "Team 1", score: 0 },
+            { id: 2, name: "Team 2", score: 0 },
+            { id: 3, name: "Team 3", score: 0 }
+        ];
+        let activePlayerIndex = 0;
+        let currentClue = null;
+        let activeTileElement = null;
+        let dailyDoubleCoords = { categoryIndex: 0, clueIndex: 0 };
+        let isDailyDouble = false;
+        let currentWager = 0;
+
+        // TIMER VARIABLES
+        let timerDuration = 30; // seconds
+        let timerInterval = null;
+        let timeRemaining = 30;
+
+        // BUZZER VARIABLES
+        let buzzedPlayerIndex = null;
+
+        // MORPHEME MATRIX DATA
+        const matrixPrefixes = ["UN-", "RE-", "PRE-", "SUB-", "DIS-", "IN-"];
+        const matrixBases = ["HAPPY", "WAY", "WRITE", "DO", "MARINE", "VIEW"];
+        const matrixSuffixes = ["-NESS", "-ABLE", "-ING", "-FUL", "-ED", "-ER"];
+        
+        const validMatrixCombinations = {
+            "UN-HAPPY--NESS": "UNHAPPINESS",
+            "RE-WRITE--ING": "REWRITING",
+            "RE-DO--ABLE": "REDOABLE",
+            "PRE-VIEW--ED": "PREVIEWED",
+            "PRE-VIEW--ER": "PREVIEWER",
+            "SUB-WAY-": "SUBWAY",
+            "SUB-MARINE-": "SUBMARINE",
+            "UN-HAPPY-": "UNHAPPY",
+            "RE-WRITE-": "REWRITE",
+            "RE-DO-": "REDO",
+            "PRE-VIEW-": "PREVIEW",
+            "-HAPPY--NESS": "HAPPINESS"
+        };
+        
+        let currentMatrixSelection = { prefix: "", base: "", suffix: "" };
+        let discoveredWords = [];
+
+        // INITIALIZATION
+        window.onload = function() {
+            reshuffleBoard();
+            renderScoreboard();
+            initMatrixUI();
+            setupKeyboardBuzzers();
+        };
+
+        // KEYBOARD BUZZER LISTENER (Keys 1 - 5)
+        function setupKeyboardBuzzers() {
+            window.addEventListener('keydown', (e) => {
+                const clueModalVisible = !document.getElementById('clueModal').classList.contains('hidden');
+                if (!clueModalVisible) return;
+
+                const keyNum = parseInt(e.key);
+                if (keyNum >= 1 && keyNum <= players.length) {
+                    triggerBuzzer(keyNum - 1);
+                }
+            });
+        }
+
+        function triggerBuzzer(playerIdx) {
+            if (buzzedPlayerIndex !== null) return; // already buzzed in
+            buzzedPlayerIndex = playerIdx;
+            activePlayerIndex = playerIdx;
+            playSound('buzzer');
+            renderScoreboard();
+
+            const banner = document.getElementById('buzzerStatusText');
+            banner.innerText = `🚨 ${players[playerIdx].name} BUZZED IN!`;
+            document.getElementById('buzzerBanner').classList.add('buzzer-glow');
+        }
+
+        // VIEW SWITCHING (Jeopardy Board vs Morpheme Matrix)
+        function switchView(viewName) {
+            playSound('select');
+            const jView = document.getElementById('jeopardyView');
+            const mView = document.getElementById('matrixView');
+            const navBoard = document.getElementById('navBoardBtn');
+            const navMatrix = document.getElementById('navMatrixBtn');
+
+            if (viewName === 'board') {
+                jView.classList.remove('hidden');
+                mView.classList.add('hidden');
+                navBoard.className = 'bg-jgold text-blue-950 px-3 py-1.5 rounded font-black text-xs md:text-sm flex items-center gap-1.5 shadow';
+                navMatrix.className = 'text-blue-200 hover:text-white px-3 py-1.5 rounded font-bold text-xs md:text-sm flex items-center gap-1.5';
+            } else {
+                jView.classList.add('hidden');
+                mView.classList.remove('hidden');
+                navBoard.className = 'text-blue-200 hover:text-white px-3 py-1.5 rounded font-bold text-xs md:text-sm flex items-center gap-1.5';
+                navMatrix.className = 'bg-jgold text-blue-950 px-3 py-1.5 rounded font-black text-xs md:text-sm flex items-center gap-1.5 shadow';
+                document.getElementById('matrixActiveTeam').innerText = players[activePlayerIndex].name;
+            }
+        }
+
+        // BOARD RANDOMIZER / RESHUFFLE
+        function reshuffleBoard() {
+            playSound('select');
+            // Deep clone and shuffle categories
+            const shuffledPool = [...masterCategoryPool].sort(() => Math.random() - 0.5);
+            activeCategories = shuffledPool.slice(0, 5).map(cat => ({
+                title: cat.title,
+                clues: [...cat.clues].sort(() => Math.random() - 0.5).map((c, i) => ({
+                    ...c,
+                    value: (i + 1) * 100 // Reassign $100 - $500 scaling
+                }))
+            }));
+
+            setRandomDailyDouble();
+            renderBoard();
+        }
+
+        function setRandomDailyDouble() {
+            dailyDoubleCoords.categoryIndex = Math.floor(Math.random() * 5);
+            dailyDoubleCoords.clueIndex = Math.floor(Math.random() * 5);
+        }
+
+        // RENDER JEOPARDY BOARD
+        function renderBoard() {
+            const board = document.getElementById('gameBoard');
+            board.innerHTML = '';
+
+            // Header Row
+            activeCategories.forEach(cat => {
+                const header = document.createElement('div');
+                header.className = 'j-card bg-jblue-dark text-jgold font-black uppercase text-center p-2 md:p-3 text-xs md:text-sm flex items-center justify-center rounded-xl tracking-wide min-h-[55px] border-2 border-jgold/80';
+                header.innerText = cat.title;
+                board.appendChild(header);
+            });
+
+            // Grid Tiles
+            for (let clueIdx = 0; clueIdx < 5; clueIdx++) {
+                activeCategories.forEach((cat, catIdx) => {
+                    const clue = cat.clues[clueIdx];
+                    const tile = document.createElement('div');
+                    tile.className = 'j-card rounded-xl flex items-center justify-center p-3 md:p-4 text-xl md:text-3xl font-black text-jgold hover:text-white select-none min-h-[60px] md:min-h-[75px]';
+                    tile.innerText = `$${clue.value}`;
+                    tile.onclick = () => openClue(catIdx, clueIdx, tile);
+                    board.appendChild(tile);
+                });
+            }
+        }
+
+        // RENDER SCOREBOARD
+        function renderScoreboard() {
+            const sb = document.getElementById('scoreboard');
+            sb.innerHTML = '';
+
+            players.forEach((player, idx) => {
+                const isTurn = idx === activePlayerIndex;
+                const isBuzzed = idx === buzzedPlayerIndex;
+                const card = document.createElement('div');
+                card.className = `p-2 rounded-xl border-2 transition-all flex flex-col justify-between ${
+                    isBuzzed ? 'buzzer-glow bg-amber-500/30 border-yellow-300' :
+                    isTurn ? 'active-player bg-blue-900/60 border-jgold' : 'bg-blue-900/30 border-blue-800'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <input type="text" value="${player.name}" onchange="updatePlayerName(${idx}, this.value)" 
+                               class="bg-transparent text-white font-bold text-xs md:text-sm focus:outline-none border-b border-transparent focus:border-jgold w-20">
+                        <button onclick="triggerBuzzer(${idx})" class="text-[9px] uppercase font-bold bg-amber-500 hover:bg-amber-400 text-blue-950 px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                            <i class="fa-solid fa-bell"></i> #${idx+1}
+                        </button>
+                    </div>
+                    <div class="text-lg md:text-xl font-black text-center my-0.5 ${player.score < 0 ? 'text-red-400' : 'text-jgold'}">
+                        $${player.score}
+                    </div>
+                    <div class="flex justify-between gap-1 mt-1">
+                        <button onclick="adjustScore(${idx}, -100)" class="bg-red-900/60 hover:bg-red-800 text-red-200 text-[10px] md:text-xs px-1 py-1 rounded w-full font-bold">-100</button>
+                        <button onclick="setTurn(${idx})" class="bg-blue-800 hover:bg-blue-700 text-blue-200 text-[10px] md:text-xs px-1 py-1 rounded w-full font-bold">Turn</button>
+                        <button onclick="adjustScore(${idx}, 100)" class="bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 text-[10px] md:text-xs px-1 py-1 rounded w-full font-bold">+100</button>
+                    </div>
+                `;
+                sb.appendChild(card);
+            });
+
+            updateModalPlayerButtons();
+        }
+
+        function setTurn(index) {
+            activePlayerIndex = index;
+            renderScoreboard();
+        }
+
+        function adjustScore(playerIdx, amount) {
+            players[playerIdx].score += amount;
+            renderScoreboard();
+        }
+
+        function updatePlayerName(idx, newName) {
+            players[idx].name = newName || `Team ${idx+1}`;
+            renderScoreboard();
+        }
+
+        function addPlayer() {
+            if (players.length < 5) {
+                players.push({ id: players.length + 1, name: `Team ${players.length + 1}`, score: 0 });
+                renderScoreboard();
+            }
+        }
+
+        function removePlayer() {
+            if (players.length > 1) {
+                players.pop();
+                if (activePlayerIndex >= players.length) activePlayerIndex = 0;
+                renderScoreboard();
+            }
+        }
+
+        // TIMER FUNCTIONS
+        function toggleTimerDuration() {
+            if (timerDuration === 30) timerDuration = 45;
+            else if (timerDuration === 45) timerDuration = 15;
+            else timerDuration = 30;
+
+            document.getElementById('timerDisplay').innerText = `${timerDuration}s`;
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeRemaining = timerDuration;
+            const display = document.getElementById('timerDisplay');
+            display.innerText = `${timeRemaining}s`;
+
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                display.innerText = `${timeRemaining}s`;
+                if (timeRemaining <= 5 && timeRemaining > 0) {
+                    playSound('tick');
+                }
+                if (timeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    playSound('incorrect');
+                    display.innerText = "TIME OUT!";
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        // OPEN CLUE
+        function openClue(catIdx, clueIdx, tileElem) {
+            if (tileElem.classList.contains('disabled')) return;
+
+            buzzedPlayerIndex = null;
+            document.getElementById('buzzerStatusText').innerText = "Press Keyboard Key (1-5) or Team Buzzer to Lock In!";
+            document.getElementById('buzzerBanner').classList.remove('buzzer-glow');
+
+            currentClue = activeCategories[catIdx].clues[clueIdx];
+            currentClue.categoryTitle = activeCategories[catIdx].title;
+            activeTileElement = tileElem;
+
+            if (catIdx === dailyDoubleCoords.categoryIndex && clueIdx === dailyDoubleCoords.clueIndex) {
+                isDailyDouble = true;
+                playSound('dailyDouble');
+                showDailyDoubleModal();
+                return;
+            }
+
+            isDailyDouble = false;
+            currentWager = currentClue.value;
+            displayClueModal();
+        }
+
+        function showDailyDoubleModal() {
+            const select = document.getElementById('ddPlayerSelect');
+            select.innerHTML = '';
+            players.forEach((p, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.innerText = `${p.name} ($${p.score})`;
+                if (i === activePlayerIndex) opt.selected = true;
+                select.appendChild(opt);
+            });
+
+            document.getElementById('ddWagerInput').value = Math.max(500, players[activePlayerIndex].score);
+            document.getElementById('dailyDoubleModal').classList.remove('hidden');
+        }
+
+        function confirmDailyDoubleWager() {
+            const pIdx = parseInt(document.getElementById('ddPlayerSelect').value);
+            activePlayerIndex = pIdx;
+            
+            let wager = parseInt(document.getElementById('ddWagerInput').value) || 500;
+            const maxWager = Math.max(1000, players[activePlayerIndex].score);
+            wager = Math.min(Math.max(100, wager), maxWager);
+
+            currentWager = wager;
+            document.getElementById('dailyDoubleModal').classList.add('hidden');
+            displayClueModal();
+        }
+
+        // DISPLAY CLUE MODAL
+        function displayClueModal() {
+            playSound('select');
+            startTimer();
+            
+            document.getElementById('modalCategory').innerText = currentClue.categoryTitle;
+            document.getElementById('modalValue').innerText = isDailyDouble ? `DAILY DOUBLE: $${currentWager}` : `$${currentWager}`;
+            document.getElementById('modalClueText').innerText = `"${currentClue.prompt}"`;
+
+            const optionsContainer = document.getElementById('optionsContainer');
+            const openAnswerContainer = document.getElementById('openAnswerContainer');
+            const feedbackBox = document.getElementById('feedbackBox');
+            
+            feedbackBox.className = 'hidden mb-3 p-2 rounded-lg text-center font-bold text-xs md:text-sm';
+            feedbackBox.innerText = '';
+
+            if (isMultipleChoiceMode) {
+                optionsContainer.classList.remove('hidden');
+                openAnswerContainer.classList.add('hidden');
+                optionsContainer.innerHTML = '';
+
+                const shuffled = [...currentClue.options].sort(() => Math.random() - 0.5);
+                shuffled.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'bg-blue-900/80 hover:bg-blue-700 text-white font-bold p-3 rounded-xl border border-blue-500/50 hover:border-jgold text-left transition flex items-center justify-between text-xs md:text-sm group';
+                    btn.innerHTML = `
+                        <span>${opt}</span>
+                        <i class="fa-solid fa-chevron-right opacity-0 group-hover:opacity-100 text-jgold transition"></i>
+                    `;
+                    btn.onclick = () => checkMultipleChoice(opt, btn);
+                    optionsContainer.appendChild(btn);
+                });
+            } else {
+                optionsContainer.classList.add('hidden');
+                openAnswerContainer.classList.remove('hidden');
+                document.getElementById('revealAnswerBtn').classList.remove('hidden');
+                const directText = document.getElementById('directAnswerText');
+                directText.classList.add('hidden');
+                directText.innerText = `Answer: ${currentClue.correct}`;
+            }
+
+            document.getElementById('clueModal').classList.remove('hidden');
+        }
+
+        function checkMultipleChoice(selectedOption, buttonElem) {
+            stopTimer();
+            const feedback = document.getElementById('feedbackBox');
+            feedback.classList.remove('hidden');
+
+            const isCorrect = selectedOption === currentClue.correct;
+            const allBtns = document.getElementById('optionsContainer').getElementsByTagName('button');
+            for (let b of allBtns) b.disabled = true;
+
+            const targetPlayer = buzzedPlayerIndex !== null ? buzzedPlayerIndex : activePlayerIndex;
+
+            if (isCorrect) {
+                playSound('correct');
+                buttonElem.classList.add('bg-emerald-600', 'border-emerald-300');
+                feedback.className = 'mb-3 p-2 rounded-lg text-center font-bold text-xs md:text-sm bg-emerald-950 text-emerald-200 border border-emerald-500';
+                feedback.innerText = `Correct! +$${currentWager} awarded to ${players[targetPlayer].name}`;
+                players[targetPlayer].score += currentWager;
+            } else {
+                playSound('incorrect');
+                buttonElem.classList.add('bg-rose-700', 'border-rose-400');
+                feedback.className = 'mb-3 p-2 rounded-lg text-center font-bold text-xs md:text-sm bg-rose-950 text-rose-200 border border-rose-500';
+                feedback.innerText = `Incorrect! -$${currentWager} for ${players[targetPlayer].name}. Correct answer: ${currentClue.correct}`;
+                players[targetPlayer].score -= currentWager;
+            }
+
+            renderScoreboard();
+            disableActiveTile();
+        }
+
+        function revealDirectAnswer() {
+            stopTimer();
+            playSound('select');
+            document.getElementById('revealAnswerBtn').classList.add('hidden');
+            document.getElementById('directAnswerText').classList.remove('hidden');
+            disableActiveTile();
+        }
+
+        function disableActiveTile() {
+            if (activeTileElement) {
+                activeTileElement.classList.add('disabled');
+                activeTileElement.innerText = '';
+                activeTileElement.onclick = null;
+            }
+        }
+
+        function updateModalPlayerButtons() {
+            const container = document.getElementById('modalPlayerButtons');
+            if (!container) return;
+            container.innerHTML = '';
+
+            players.forEach((p, idx) => {
+                const addBtn = document.createElement('button');
+                addBtn.className = 'bg-emerald-800 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[11px] font-bold';
+                addBtn.innerText = `+ ${p.name}`;
+                addBtn.onclick = () => {
+                    p.score += currentWager;
+                    renderScoreboard();
+                };
+
+                const subBtn = document.createElement('button');
+                subBtn.className = 'bg-rose-800 hover:bg-rose-700 text-white px-2 py-1 rounded text-[11px] font-bold';
+                subBtn.innerText = `- ${p.name}`;
+                subBtn.onclick = () => {
+                    p.score -= currentWager;
+                    renderScoreboard();
+                };
+
+                container.appendChild(addBtn);
+                container.appendChild(subBtn);
+            });
+        }
+
+        function closeClueModal() {
+            stopTimer();
+            document.getElementById('clueModal').classList.add('hidden');
+            activePlayerIndex = (activePlayerIndex + 1) % players.length;
+            renderScoreboard();
+        }
+
+        // MORPHEME MATRIX BUILDER LOGIC
+        function initMatrixUI() {
+            const pList = document.getElementById('prefixList');
+            const bList = document.getElementById('baseList');
+            const sList = document.getElementById('suffixList');
+
+            pList.innerHTML = matrixPrefixes.map(p => 
+                `<button onclick="selectMatrixItem('prefix', '${p}')" class="bg-blue-950 hover:bg-yellow-500 hover:text-blue-950 border border-yellow-400/40 p-2 rounded text-xs font-bold transition text-yellow-300">${p}</button>`
+            ).join('');
+
+            bList.innerHTML = matrixBases.map(b => 
+                `<button onclick="selectMatrixItem('base', '${b}')" class="bg-blue-950 hover:bg-emerald-500 hover:text-blue-950 border border-emerald-400/40 p-2 rounded text-xs font-bold transition text-emerald-300">${b}</button>`
+            ).join('');
+
+            sList.innerHTML = matrixSuffixes.map(s => 
+                `<button onclick="selectMatrixItem('suffix', '${s}')" class="bg-blue-950 hover:bg-sky-500 hover:text-blue-950 border border-sky-400/40 p-2 rounded text-xs font-bold transition text-sky-300">${s}</button>`
+            ).join('');
+        }
+
+        function selectMatrixItem(type, val) {
+            playSound('select');
+            currentMatrixSelection[type] = currentMatrixSelection[type] === val ? "" : val;
+
+            document.getElementById('selectedPrefix').innerText = currentMatrixSelection.prefix || "[Prefix]";
+            document.getElementById('selectedBase').innerText = currentMatrixSelection.base || "[Base]";
+            document.getElementById('selectedSuffix').innerText = currentMatrixSelection.suffix || "[Suffix]";
+
+            const fullText = (currentMatrixSelection.prefix + currentMatrixSelection.base + currentMatrixSelection.suffix).replace(/-/g, '');
+            document.getElementById('assembledWord').innerText = fullText || "[Assemble Word]";
+        }
+
+        function clearMatrix() {
+            currentMatrixSelection = { prefix: "", base: "", suffix: "" };
+            document.getElementById('selectedPrefix').innerText = "[Prefix]";
+            document.getElementById('selectedBase').innerText = "[Base]";
+            document.getElementById('selectedSuffix').innerText = "[Suffix]";
+            document.getElementById('assembledWord').innerText = "[Assemble Word]";
+            document.getElementById('matrixFeedback').classList.add('hidden');
+        }
+
+        function checkMatrixWord() {
+            const fb = document.getElementById('matrixFeedback');
+            fb.classList.remove('hidden');
+
+            const key = `${currentMatrixSelection.prefix}-${currentMatrixSelection.base}-${currentMatrixSelection.suffix}`;
+            
+            if (validMatrixCombinations[key]) {
+                const word = validMatrixCombinations[key];
+                playSound('correct');
+                fb.className = 'p-3 rounded-xl font-bold text-sm text-center mb-4 bg-emerald-950 text-emerald-200 border border-emerald-500';
+                fb.innerText = `🎉 Valid Morpheme Combination! Discovered "${word}". +200 Points to ${players[activePlayerIndex].name}!`;
+                
+                players[activePlayerIndex].score += 200;
+                renderScoreboard();
+
+                if (!discoveredWords.includes(word)) {
+                    discoveredWords.push(word);
+                    renderDiscoveredWords();
+                }
+            } else {
+                playSound('incorrect');
+                fb.className = 'p-3 rounded-xl font-bold text-sm text-center mb-4 bg-rose-950 text-rose-200 border border-rose-500';
+                fb.innerText = `❌ Invalid Morpheme Combination! Try combining a different prefix, base, or suffix.`;
+            }
+        }
+
+        function renderDiscoveredWords() {
+            const list = document.getElementById('discoveredWordsList');
+            list.innerHTML = discoveredWords.map(w => 
+                `<span class="bg-yellow-400/20 text-yellow-300 border border-yellow-400/40 px-2.5 py-1 rounded-full text-xs font-bold">${w}</span>`
+            ).join('');
+        }
+
+        // FINAL JEOPARDY
+        function startFinalJeopardy() {
+            playSound('dailyDouble');
+            const modal = document.getElementById('finalJeopardyModal');
+            document.getElementById('fjWagerPhase').classList.remove('hidden');
+            document.getElementById('fjQuestionPhase').classList.add('hidden');
+            document.getElementById('fjWinnerPhase').classList.add('hidden');
+
+            const wagerContainer = document.getElementById('fjWagerInputs');
+            wagerContainer.innerHTML = '';
+
+            players.forEach((p, i) => {
+                const maxWager = Math.max(0, p.score);
+                const card = document.createElement('div');
+                card.className = 'bg-blue-950 p-2.5 rounded-lg border border-blue-700 text-left';
+                card.innerHTML = `
+                    <label class="block font-bold text-xs text-jgold mb-1">${p.name} (Score: $${p.score})</label>
+                    <input type="number" id="fjWager_${i}" min="0" max="${maxWager}" value="${Math.min(500, maxWager)}" 
+                           class="w-full bg-blue-900 border border-blue-500 rounded p-1.5 text-white font-bold text-sm">
+                `;
+                wagerContainer.appendChild(card);
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        function proceedToFJQuestion() {
+            playSound('select');
+            document.getElementById('fjWagerPhase').classList.add('hidden');
+            document.getElementById('fjQuestionPhase').classList.remove('hidden');
+
+            players.forEach((p, i) => {
+                const wagerVal = parseInt(document.getElementById(`fjWager_${i}`).value) || 0;
+                p.fjWager = Math.min(Math.max(0, wagerVal), Math.max(0, p.score));
+            });
+
+            document.getElementById('fjClueText').innerText = `"Explain the morphological difference between a Free Base and an Affix, and explain why words like 'Understand' or 'Superstition' are listed as non-examples."`;
+
+            const answersContainer = document.getElementById('fjPlayerAnswers');
+            answersContainer.innerHTML = '';
+
+            players.forEach((p, i) => {
+                const box = document.createElement('div');
+                box.className = 'bg-blue-950 p-2.5 rounded-lg border border-blue-700';
+                box.innerHTML = `
+                    <p class="font-bold text-xs text-jgold mb-1">${p.name} (Wager: $${p.fjWager}):</p>
+                    <select id="fjResult_${i}" class="w-full bg-blue-900 border border-blue-500 rounded p-1.5 text-white text-xs font-semibold">
+                        <option value="correct">Mark Correct (+ $${p.fjWager})</option>
+                        <option value="incorrect">Mark Incorrect (- $${p.fjWager})</option>
+                    </select>
+                `;
+                answersContainer.appendChild(box);
+            });
+        }
+
+        function revealFJResults() {
+            playSound('correct');
+            players.forEach((p, i) => {
+                const res = document.getElementById(`fjResult_${i}`).value;
+                if (res === 'correct') {
+                    p.score += p.fjWager;
+                } else {
+                    p.score -= p.fjWager;
+                }
+            });
+
+            renderScoreboard();
+
+            let winner = players[0];
+            players.forEach(p => {
+                if (p.score > winner.score) winner = p;
+            });
+
+            document.getElementById('fjQuestionPhase').classList.add('hidden');
+            document.getElementById('fjWinnerPhase').classList.remove('hidden');
+            document.getElementById('winnerText').innerText = `🎉 ${winner.name} Wins with $${winner.score}! 🎉`;
+        }
+    </script>
+</body>
+</html>
